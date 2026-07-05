@@ -42,7 +42,7 @@
 }
 
 .navbar-logo img {
-  height: 28px;
+  height: 100px;
   width: auto;
   display: block;
   transition: opacity var(--transition-fast);

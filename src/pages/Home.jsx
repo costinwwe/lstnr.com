@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabase';
 import './Home.css';
 
 const FadeIn = ({ children, delay = 0, direction = 'up' }) => {
@@ -79,6 +81,28 @@ const AnimatedCounter = ({ value, suffix = '', decimals = 0, duration = 2000 }) 
 };
 
 const Home = () => {
+  const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(Boolean(session));
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(Boolean(session));
+    });
+
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  const handleGetStarted = () => {
+    navigate(isLoggedIn ? '/profile' : '/login');
+  };
+
   return (
     <main className="home-page">
       <section className="hero-section">
@@ -102,8 +126,7 @@ const Home = () => {
 
             <FadeIn delay={300}>
               <div className="hero-actions">
-                <button className="btn btn-primary">Get Started</button>
-                <button className="btn btn-secondary">View Demo</button>
+                <button className="btn btn-primary" onClick={handleGetStarted}>Get Started</button>
               </div>
 
               <div className="social-proof">
@@ -286,7 +309,7 @@ const Home = () => {
               <div className="cta-background-glow"></div>
               <h2>Ready to share your music?</h2>
               <p>Join thousands of listeners building their digital music identity today.</p>
-              <button className="btn btn-primary btn-large">Create Your Profile</button>
+              <a href="/profile"><button className="btn btn-primary btn-large">Create your profile</button></a>
             </div>
           </FadeIn>
         </div>
@@ -313,10 +336,9 @@ const Home = () => {
               </div>
               <div className="link-column">
                 <h4>Company</h4>
-                <a href="#">About Us</a>
-                <a href="#">Careers</a>
+                <a href="/about">About Us</a>
                 <a href="#">Blog</a>
-                <a href="#">Contact</a>
+                <a href="/contact">Contact</a>
               </div>
               <div className="link-column">
                 <h4>Legal</h4>

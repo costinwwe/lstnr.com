@@ -1,5 +1,5 @@
 import logo from "./logo.png";
-import crossBlack from "./cross-black.svg";
-import crossWhite from "./cross-white.svg";
+import crossBlack from "./logo_dark.png";
+import crossWhite from "./logo_white.png";
 
 export { logo, crossBlack, crossWhite };
