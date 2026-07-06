@@ -122,7 +122,7 @@ const Login = () => {
   } finally {
     setSpotifyLoading(false);
   }
-};
+};  
 
   return (
     <div className="auth-page">
