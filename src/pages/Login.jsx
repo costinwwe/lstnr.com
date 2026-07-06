@@ -102,26 +102,27 @@ const Login = () => {
   };
 
   const handleSpotify = async (e) => {
-    e.preventDefault();
-    try {
-      setSpotifyLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'spotify',
-        options: {
-          scopes: 'user-read-email user-read-private streaming',
-          queryParams: { prompt: 'consent' },
-        },
-      });
+  e.preventDefault();
+  try {
+    setSpotifyLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'spotify',
+      options: {
+        // AICI AM ADAUGAT 'playlist-read-private' LA FINAL 👇
+        scopes: 'user-read-email user-read-private streaming user-read-currently-playing user-read-playback-state user-top-read user-read-recently-played user-library-read user-follow-read playlist-read-private',
+        queryParams: { prompt: 'consent' },
+      },
+    });
 
-      if (error) {
-        setFeedback({ type: 'error', message: error.message });
-      }
-    } catch (err) {
-      setFeedback({ type: 'error', message: 'Spotify sign-in could not be started.' });
-    } finally {
-      setSpotifyLoading(false);
+    if (error) {
+      setFeedback({ type: 'error', message: error.message });
     }
-  };
+  } catch (err) {
+    setFeedback({ type: 'error', message: 'Spotify sign-in could not be started.' });
+  } finally {
+    setSpotifyLoading(false);
+  }
+};
 
   return (
     <div className="auth-page">

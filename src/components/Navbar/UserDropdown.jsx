@@ -38,7 +38,7 @@ const UserDropdown = ({ user }) => {
       </button>
 
       <div className={`dropdown-menu ${isOpen ? 'open' : ''}`}>
-        <button className="dropdown-item" onClick={() => { navigate('/profile'); setIsOpen(false); }}>
+        <button className="dropdown-item" onClick={() => { navigate(`/profile/${user.id}`); setIsOpen(false); }}>
           Profile
         </button>
         <button className="dropdown-item" onClick={() => { navigate('/settings'); setIsOpen(false); }}>
