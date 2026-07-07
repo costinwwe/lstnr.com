@@ -773,4 +773,122 @@
     max-width: 100%;
   }
 }
-  
+.profile-page {
+  width: 100%;
+  min-height: calc(100vh - var(--nav-height));
+  background: var(--bg-main);
+  color: var(--text-primary);
+  padding: 24px clamp(16px, 4vw, 40px);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+/* --- Header & Banner --- */
+.profile-hero {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.profile-banner {
+  height: 240px;
+  width: 100%;
+  background: #2b0000; /* Fallback roșu închis */
+  position: relative;
+  overflow: hidden;
+}
+
+.profile-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.3s ease;
+}
+
+/* --- Profile Avatar - Gradient Roșu --- */
+.profile-avatar {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  /* Gradient roșu-negru */
+  background: linear-gradient(135deg, #dc2626, #7f1d1d);
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* --- Link-uri și Interacțiuni - Hover Roșu --- */
+.profile-link-item:hover {
+  background: #450a0a;
+  color: #fecaca;
+  border-color: #ef4444;
+  transform: translateY(-1px);
+}
+
+/* --- Buttons - Primar este acum ROȘU --- */
+.btn-primary {
+  background: #dc2626;
+  color: white;
+  border: 1px solid #dc2626;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.2);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.3);
+  opacity: 0.9;
+  background: #b91c1c;
+}
+
+/* --- Activity Graph - Nuanțe de Roșu --- */
+.activity-day[data-level="1"] {
+  background: #fca5a5;
+}
+.activity-day[data-level="2"] {
+  background: color-mix(in srgb, #ef4444 50%, transparent);
+}
+.activity-day[data-level="3"] {
+  background: #dc2626;
+}
+.activity-day[data-level="4"] {
+  background: #7f1d1d;
+}
+
+/* --- Progress Bar --- */
+.progress-bar-fill {
+  height: 100%;
+  background: #dc2626; /* Roșu la progress */
+  border-radius: var(--radius-full);
+}
+
+/* --- Formular & Modal - Focus Roșu --- */
+.form-input:focus,
+.form-select:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+/* Restul stilurilor rămân la fel, dar am curățat micile referințe la albastru */
+.profile-meta-text h1 {
+  margin: 0 0 4px;
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.02em;
+}

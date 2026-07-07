@@ -16,6 +16,7 @@ function mapTopArtists(items = [], limit = 10) {
     imageUrl: artist.images?.[0]?.url || null,
     subtitle: "Artist",
     popularity: artist.popularity ?? 0,
+    genres: artist.genres || [], // Păstrăm genurile aici
   }));
 }
 
@@ -30,11 +31,9 @@ function mapTopTracks(items = [], limit = 10) {
 
 function mapAlbumsFromTracks(items = [], limit = 8) {
   const albums = new Map();
-
   items.forEach((track) => {
     const album = track.album;
     if (!album || albums.has(album.id)) return;
-
     albums.set(album.id, {
       id: album.id,
       title: album.name,
@@ -42,38 +41,31 @@ function mapAlbumsFromTracks(items = [], limit = 8) {
       coverUrl: album.images?.[0]?.url || null,
     });
   });
-
   return Array.from(albums.values()).slice(0, limit);
 }
 
 function mapPublicPlaylists(items = []) {
-  return items
-    .filter((playlist) => playlist.public)
-    .slice(0, 12)
-    .map((playlist) => ({
-      id: playlist.id,
-      title: playlist.name,
-      subtitle: playlist.owner?.display_name
-        ? `By ${playlist.owner.display_name}`
-        : "Playlist",
-      coverUrl: playlist.images?.[0]?.url || null,
-      trackCount: playlist.tracks?.total || 0,
-      url: playlist.external_urls?.spotify || null,
-    }));
+  return items.map((p) => ({
+    id: p.id,
+    title: p.name,
+    subtitle: `${p.tracks.total} tracks`,
+    coverUrl: p.images?.[0]?.url || null,
+    url: p.external_urls.spotify,
+  }));
 }
 
 function mapFollowingArtists(items = []) {
-  return items.slice(0, 12).map((artist) => ({
-    id: artist.id,
-    name: artist.name,
-    imageUrl: artist.images?.[0]?.url || null,
-    subtitle: "Artist",
+  return items.map((a) => ({
+    id: a.id,
+    name: a.name,
+    imageUrl: a.images?.[0]?.url || null,
+    url: a.external_urls.spotify,
   }));
 }
 
 function mapRecentlyPlayed(items = [], limit = 10) {
   return items.slice(0, limit).map((item) => ({
-    id: `${item.track.id}-${item.played_at}`,
+    id: item.track.id,
     title: item.track.name,
     artist: item.track.artists.map((a) => a.name).join(", "),
     coverUrl: item.track.album?.images?.[0]?.url || null,
@@ -81,85 +73,67 @@ function mapRecentlyPlayed(items = [], limit = 10) {
   }));
 }
 
-function buildActivityLevels(recentItems = []) {
-  const activityLevels = new Array(90).fill(0);
-  const today = new Date();
-
-  recentItems.forEach((item) => {
-    const playedDate = new Date(item.played_at);
-    const diffDays = Math.floor(
-      Math.abs(today - playedDate) / (1000 * 60 * 60 * 24),
-    );
-
-    if (diffDays < 90) {
-      const targetIndex = 89 - diffDays;
-      activityLevels[targetIndex] = Math.min(
-        4,
-        activityLevels[targetIndex] + 1,
-      );
-    }
+function buildActivityLevels(items = []) {
+  const activity = new Array(90).fill(0);
+  items.forEach((item) => {
+    const date = new Date(item.played_at);
+    const diff = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
+    if (diff < 90) activity[89 - diff] = Math.min(activity[89 - diff] + 1, 4);
   });
-
-  return activityLevels;
+  return activity;
 }
 
-function extractTopGenres(artists = [], limit = 6) {
-  const genreCounts = artists
-    .flatMap((artist) => artist.genres || [])
-    .filter(Boolean)
-    .reduce((acc, genre) => {
-      acc[genre] = (acc[genre] || 0) + 1;
-      return acc;
-    }, {});
-
-  return Object.keys(genreCounts)
-    .sort((a, b) => genreCounts[b] - genreCounts[a])
-    .slice(0, limit)
-    .map((genre) => genre.charAt(0).toUpperCase() + genre.slice(1));
+// LOGICA NOUĂ: Extrage top genuri din artiști
+function extractTopGenres(artists) {
+  const genreCounts = {};
+  artists.forEach((artist) => {
+    if (artist.genres && artist.genres.length > 0) {
+      artist.genres.forEach((genre) => {
+        const cleanGenre = genre.charAt(0).toUpperCase() + genre.slice(1);
+        genreCounts[cleanGenre] = (genreCounts[cleanGenre] || 0) + 1;
+      });
+    }
+  });
+  return Object.entries(genreCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map((entry) => entry[0])
+    .slice(0, 10);
 }
 
 export async function syncSpotifyProfile(token) {
   const [
     me,
-    topArtistsShort,
-    topArtistsMedium,
     topTracks,
-    recentlyPlayed,
+    topArtistsMedium,
     playlists,
     followingArtists,
+    recentlyPlayed,
   ] = await Promise.all([
     spotifyGet(token, "/me"),
-    spotifyGet(token, "/me/top/artists?limit=10&time_range=short_term"),
-    spotifyGet(token, "/me/top/artists?limit=10&time_range=medium_term"),
-    spotifyGet(token, "/me/top/tracks?limit=10&time_range=medium_term"),
-    spotifyGet(token, "/me/player/recently-played?limit=50"),
-    spotifyGet(token, "/me/playlists?limit=50"),
-    spotifyGet(token, "/me/following?type=artist&limit=12"),
+    spotifyGet(token, "/me/top/tracks?limit=20&time_range=short_term"),
+    spotifyGet(token, "/me/top/artists?limit=50&time_range=medium_term"),
+    spotifyGet(token, "/me/playlists"),
+    spotifyGet(token, "/me/following?type=artist"),
+    spotifyGet(token, "/me/player/recently-played?limit=20"),
   ]);
 
-  if (!me) {
-    throw new Error("Could not load Spotify profile.");
-  }
+  if (!me) return null;
 
-  const artistsThisMonth = mapTopArtists(topArtistsShort?.items || [], 10);
-  const artistsAllTime = mapTopArtists(topArtistsMedium?.items || [], 5);
-  const tracks = mapTopTracks(topTracks?.items || [], 10);
+  const tracks = mapTopTracks(topTracks?.items || [], 8);
   const albums = mapAlbumsFromTracks(topTracks?.items || [], 8);
   const publicPlaylists = mapPublicPlaylists(playlists?.items || []);
   const following = mapFollowingArtists(followingArtists?.artists?.items || []);
   const recentTracks = mapRecentlyPlayed(recentlyPlayed?.items || [], 10);
   const activity = buildActivityLevels(recentlyPlayed?.items || []);
-  const genres = extractTopGenres([
-    ...(topArtistsShort?.items || []),
-    ...(topArtistsMedium?.items || []),
-  ]);
+
+  // Aici calculăm genurile
+  const genres = extractTopGenres(topArtistsMedium?.items || []);
 
   const isPremium = me.product === "premium";
 
   return {
     fullName: me.display_name || me.id,
     avatarUrl: me.images?.[0]?.url || null,
-    bannerUrl: null,
     bio: isPremium ? "👑 Spotify Premium Member" : "🎵 Music Enthusiast",
     pronouns: "They/Them",
     links: me.external_urls?.spotify
@@ -178,14 +152,12 @@ export async function syncSpotifyProfile(token) {
     favorites: {
       tracks,
       albums,
-      artists: artistsThisMonth.length ? artistsThisMonth : artistsAllTime,
-      genres,
+      artists: mapTopArtists(topArtistsMedium?.items || [], 8),
+      genres, // Acum sunt incluse!
       playlists: publicPlaylists,
       following,
     },
     recentlyPlayed: recentTracks,
-    currentlyPlaying: null,
     activity,
-    musicPersonality: null,
   };
 }
