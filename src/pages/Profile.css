@@ -603,3 +603,121 @@
     max-width: 100%;
   }
 }
+.profile-meta-text {
+  padding-bottom: 8px;
+  min-width: 0; /* Critic: permite textului să se taie în loc să împingă containerul */
+  flex: 1; /* Ocupă spațiul rămas */
+}
+
+.profile-meta-text h1 {
+  margin: 0 0 4px;
+  font-size: clamp(1.8rem, 5vw, 2.5rem);
+  line-height: 1.1;
+
+  /* Asta previne ieșirea din ecran: */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 768px) {
+  .profile-info-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0 16px 24px; /* Padding mai mic pe mobil pentru spațiu */
+    gap: 16px;
+    margin-top: -30px; /* Ridicăm un pic avatarul peste banner */
+  }
+
+  .profile-identity {
+    flex-direction: column; /* Pune avatarul sus și textul jos */
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%; /* Forțează containerul să nu depășească ecranul */
+  }
+
+  /* Micșorăm un pic avatarul pe mobil ca să fie mai clean */
+  .avatar-wrapper {
+    width: 100px;
+    height: 100px;
+  }
+
+  /* Aliniem pronumele și stats-urile ca să nu se încâlcească */
+  .profile-pronouns,
+  .member-since {
+    flex-wrap: wrap;
+    line-height: 1.4;
+  }
+}
+
+/* --- Settings Modal --- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px); /* Efectul premium de blur în spate */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.glass-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 32px;
+  border-radius: var(--radius-lg);
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 24px 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.form-input,
+.form-select {
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--text-primary); /* Se aprinde ușor când scrii în el */
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

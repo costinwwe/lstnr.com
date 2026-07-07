@@ -1,9 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { supabase } from '../supabase';
+import EditProfileModal from './EditProfileModal';
 
 const ProfileHeader = ({ user, userName, profileData, setProfileData, handleShare, isOwner = false, stats = {} }) => {
   const avatarInputRef = useRef(null);
   const bannerInputRef = useRef(null);
+  const [isModalOpen, setIsModalOpen] = useState(false); // Starea care controlează popup-ul de editare
 
   const handleFileUpload = async (event, bucket, updateKey) => {
     const file = event.target.files[0];
@@ -71,14 +73,20 @@ const ProfileHeader = ({ user, userName, profileData, setProfileData, handleShar
           </div>
 
           <div className="profile-meta-text">
-            <h1>{userName}</h1>
-            <div className="profile-pronouns">
-              {profileData.pronouns}
-              {' • '}
-              <span className="member-since">
-                {stats.public_playlists ?? 0} Public Playlists • {stats.following ?? 0} Following
-              </span>
-            </div>
+            {/* Dacă are premium și a ales Crimson, îi punem clasa, dacă nu, default. Plus coroana dacă e premium! */}
+            <h1 className={profileData.name_style === 'crimson' ? 'premium-name-crimson' : 'default-name'}>
+  {/* Aici am schimbat ordinea: întâi display_name, apoi username */}
+  {profileData.display_name || profileData.username || userName}
+  {profileData.is_premium && <span title="Premium User" style={{ marginLeft: '8px', fontSize: '1.5rem' }}>👑</span>}
+</h1>
+             
+<div className="profile-pronouns">
+  {profileData.pronouns} • {profileData.location && `${profileData.location} • `} 
+  <span className="member-since">
+    {stats.public_playlists ?? 0} Playlists
+  </span>
+</div>
+            
             <p className="bio-text">
               {profileData.bio || "Add a short bio to tell people about your music taste..."}
             </p>
@@ -103,8 +111,23 @@ const ProfileHeader = ({ user, userName, profileData, setProfileData, handleShar
           </div>
         </div>
 
-        {isOwner ? <button type="button" className="btn btn-secondary">Edit Profile</button> : null}
+        {/* Butonul de editare care deschide modalul */}
+        {isOwner ? (
+          <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(true)}>
+            Edit Profile
+          </button>
+        ) : null}
       </div>
+
+      {/* Randăm Modalul condiționat, exact peste tot */}
+      {isModalOpen && (
+        <EditProfileModal 
+          user={user} 
+          profileData={profileData} 
+          setProfileData={setProfileData} 
+          onClose={() => setIsModalOpen(false)} 
+        />
+      )}
     </section>
   );
 };

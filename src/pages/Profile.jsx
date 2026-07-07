@@ -187,7 +187,11 @@ const Profile = () => {
 
   if (profileNotFound) {
     return (
-      <div className="profile-page profile-empty">
+      <div className="profile-page profile-empty" style={{ 
+    backgroundColor: profileData.bg_color || 'var(--bg-main)', 
+    '--accent': profileData.aura_color || 'var(--text-primary)', 
+    boxShadow: `inset 0 0 150px ${profileData.aura_color}20` 
+  }}>
         <h1>Profile not published yet</h1>
         <p>This user has not synced their Spotify profile to lstnr yet.</p>
         {sessionUser?.id === uid ? (
