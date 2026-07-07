@@ -1,4 +1,4 @@
-const SPOTIFY_API = 'https://api.spotify.com/v1';
+const SPOTIFY_API = "https://api.spotify.com/v1";
 
 async function spotifyGet(token, path) {
   const response = await fetch(`${SPOTIFY_API}${path}`, {
@@ -14,7 +14,7 @@ function mapTopArtists(items = [], limit = 10) {
     id: artist.id,
     name: artist.name,
     imageUrl: artist.images?.[0]?.url || null,
-    subtitle: 'Artist',
+    subtitle: "Artist",
     popularity: artist.popularity ?? 0,
   }));
 }
@@ -23,7 +23,7 @@ function mapTopTracks(items = [], limit = 10) {
   return items.slice(0, limit).map((item) => ({
     id: item.id,
     title: item.name,
-    artist: item.artists.map((a) => a.name).join(', '),
+    artist: item.artists.map((a) => a.name).join(", "),
     coverUrl: item.album?.images?.[0]?.url || null,
   }));
 }
@@ -38,7 +38,7 @@ function mapAlbumsFromTracks(items = [], limit = 8) {
     albums.set(album.id, {
       id: album.id,
       title: album.name,
-      artist: album.artists.map((a) => a.name).join(', '),
+      artist: album.artists.map((a) => a.name).join(", "),
       coverUrl: album.images?.[0]?.url || null,
     });
   });
@@ -53,7 +53,9 @@ function mapPublicPlaylists(items = []) {
     .map((playlist) => ({
       id: playlist.id,
       title: playlist.name,
-      subtitle: playlist.owner?.display_name ? `By ${playlist.owner.display_name}` : 'Playlist',
+      subtitle: playlist.owner?.display_name
+        ? `By ${playlist.owner.display_name}`
+        : "Playlist",
       coverUrl: playlist.images?.[0]?.url || null,
       trackCount: playlist.tracks?.total || 0,
       url: playlist.external_urls?.spotify || null,
@@ -65,7 +67,7 @@ function mapFollowingArtists(items = []) {
     id: artist.id,
     name: artist.name,
     imageUrl: artist.images?.[0]?.url || null,
-    subtitle: 'Artist',
+    subtitle: "Artist",
   }));
 }
 
@@ -73,7 +75,7 @@ function mapRecentlyPlayed(items = [], limit = 10) {
   return items.slice(0, limit).map((item) => ({
     id: `${item.track.id}-${item.played_at}`,
     title: item.track.name,
-    artist: item.track.artists.map((a) => a.name).join(', '),
+    artist: item.track.artists.map((a) => a.name).join(", "),
     coverUrl: item.track.album?.images?.[0]?.url || null,
     playedAt: item.played_at,
   }));
@@ -85,11 +87,16 @@ function buildActivityLevels(recentItems = []) {
 
   recentItems.forEach((item) => {
     const playedDate = new Date(item.played_at);
-    const diffDays = Math.floor(Math.abs(today - playedDate) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor(
+      Math.abs(today - playedDate) / (1000 * 60 * 60 * 24),
+    );
 
     if (diffDays < 90) {
       const targetIndex = 89 - diffDays;
-      activityLevels[targetIndex] = Math.min(4, activityLevels[targetIndex] + 1);
+      activityLevels[targetIndex] = Math.min(
+        4,
+        activityLevels[targetIndex] + 1,
+      );
     }
   });
 
@@ -121,17 +128,17 @@ export async function syncSpotifyProfile(token) {
     playlists,
     followingArtists,
   ] = await Promise.all([
-    spotifyGet(token, '/me'),
-    spotifyGet(token, '/me/top/artists?limit=10&time_range=short_term'),
-    spotifyGet(token, '/me/top/artists?limit=10&time_range=medium_term'),
-    spotifyGet(token, '/me/top/tracks?limit=10&time_range=medium_term'),
-    spotifyGet(token, '/me/player/recently-played?limit=50'),
-    spotifyGet(token, '/me/playlists?limit=50'),
-    spotifyGet(token, '/me/following?type=artist&limit=12'),
+    spotifyGet(token, "/me"),
+    spotifyGet(token, "/me/top/artists?limit=10&time_range=short_term"),
+    spotifyGet(token, "/me/top/artists?limit=10&time_range=medium_term"),
+    spotifyGet(token, "/me/top/tracks?limit=10&time_range=medium_term"),
+    spotifyGet(token, "/me/player/recently-played?limit=50"),
+    spotifyGet(token, "/me/playlists?limit=50"),
+    spotifyGet(token, "/me/following?type=artist&limit=12"),
   ]);
 
   if (!me) {
-    throw new Error('Could not load Spotify profile.');
+    throw new Error("Could not load Spotify profile.");
   }
 
   const artistsThisMonth = mapTopArtists(topArtistsShort?.items || [], 10);
@@ -147,21 +154,21 @@ export async function syncSpotifyProfile(token) {
     ...(topArtistsMedium?.items || []),
   ]);
 
-  const isPremium = me.product === 'premium';
+  const isPremium = me.product === "premium";
 
   return {
     fullName: me.display_name || me.id,
     avatarUrl: me.images?.[0]?.url || null,
     bannerUrl: null,
-    bio: isPremium ? '👑 Spotify Premium Member' : '🎵 Music Enthusiast',
-    pronouns: 'They/Them',
+    bio: isPremium ? "👑 Spotify Premium Member" : "🎵 Music Enthusiast",
+    pronouns: "They/Them",
     links: me.external_urls?.spotify
-      ? [{ title: 'Spotify', url: me.external_urls.spotify }]
+      ? [{ title: "Spotify", url: me.external_urls.spotify }]
       : [],
     badges: [
-      ...(isPremium ? [{ icon: '👑', name: 'Premium' }] : []),
-      { icon: '🎧', name: 'Top Listener' },
-      { icon: '🔥', name: 'Active' },
+      ...(isPremium ? [{ icon: "👑", name: "Premium" }] : []),
+      { icon: "🎧", name: "Top Listener" },
+      { icon: "🔥", name: "Active" },
     ],
     stats: {
       public_playlists: publicPlaylists.length,

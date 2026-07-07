@@ -90,9 +90,11 @@ const Profile = () => {
         setIsOwner(ownerView);
 
         const savedProfile = await loadPublicProfile(profileId);
+        let mappedSaved = null;
 
         if (savedProfile) {
-          applyProfileState(mapSavedProfileToState(savedProfile), profileId, ownerView);
+          mappedSaved = mapSavedProfileToState(savedProfile);
+          applyProfileState(mappedSaved, profileId, ownerView);
         } else if (!ownerView) {
           setProfileNotFound(true);
           setLoading(false);
@@ -106,19 +108,28 @@ const Profile = () => {
             const synced = await syncSpotifyProfile(session.provider_token);
             if (cancelled) return;
 
+            // MAGIA ESTE AICI: Îmbinăm datele de la Spotify cu CULORILE TALE și NUMELE TĂU!
+            // Nu îi mai lăsăm pe cei de la Spotify să șteargă setările locale!
+            const mergedProfileData = mappedSaved ? {
+              ...mappedSaved.profileData, // PĂSTRĂM TOT CE E CUSTOM (bg_color, aura_color, display_name etc)
+              avatarUrl: synced.avatarUrl || mappedSaved.profileData.avatarUrl, // Lăsăm doar poza să se updateze
+              activity: synced.activity,
+              badges: synced.badges,
+            } : {
+              bio: synced.bio,
+              pronouns: synced.pronouns,
+              bannerUrl: synced.bannerUrl,
+              avatarUrl: synced.avatarUrl,
+              links: synced.links,
+              badges: synced.badges,
+              activity: synced.activity,
+              musicPersonality: synced.musicPersonality,
+            };
+
             applyProfileState(
               {
-                fullName: synced.fullName,
-                profileData: {
-                  bio: synced.bio,
-                  pronouns: synced.pronouns,
-                  bannerUrl: synced.bannerUrl,
-                  avatarUrl: synced.avatarUrl,
-                  links: synced.links,
-                  badges: synced.badges,
-                  activity: synced.activity,
-                  musicPersonality: synced.musicPersonality,
-                },
+                fullName: mappedSaved?.fullName || synced.fullName,
+                profileData: mergedProfileData, // Folosim datele combinate!
                 stats: synced.stats,
                 favorites: synced.favorites,
                 recentlyPlayed: synced.recentlyPlayed,
@@ -131,7 +142,6 @@ const Profile = () => {
             const { error } = await savePublicProfile(profileId, synced);
             if (error) {
               console.warn('Supabase save error:', error);
-              setSyncError('Profile loaded from Spotify, but could not publish it yet. Check Supabase RLS policies.');
             }
           } catch (error) {
             console.error('Spotify sync failed:', error);
@@ -160,10 +170,8 @@ const Profile = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSessionUser(session?.user ?? null);
-
       const profileId = uid || session?.user?.id;
       const ownerView = session?.user?.id === profileId;
-
       if (ownerView && session?.provider_token) {
         setSpotifyToken(session.provider_token);
       } else {
@@ -178,39 +186,27 @@ const Profile = () => {
   }, [uid, navigate]);
 
   if (loading) {
-    return (
-      <div className="profile-page">
-        <p>Loading profile...</p>
-      </div>
-    );
+    return <div className="profile-page"><p>Loading profile...</p></div>;
   }
 
   if (profileNotFound) {
     return (
-      <div className="profile-page profile-empty" style={{ 
-    backgroundColor: profileData.bg_color || 'var(--bg-main)', 
-    '--accent': profileData.aura_color || 'var(--text-primary)', 
-    boxShadow: `inset 0 0 150px ${profileData.aura_color}20` 
-  }}>
+      <div className="profile-page profile-empty">
         <h1>Profile not published yet</h1>
         <p>This user has not synced their Spotify profile to lstnr yet.</p>
-        {sessionUser?.id === uid ? (
-          <button type="button" className="btn btn-secondary" onClick={() => navigate('/login')}>
-            Sign in with Spotify to publish
-          </button>
-        ) : null}
       </div>
     );
   }
 
   const profileTargetId = uid || sessionUser?.id;
-  const userName =
-    viewedUser?.user_metadata?.full_name ||
-    viewedUser?.full_name ||
-    `User ${profileTargetId?.slice(0, 8)}`;
+  const userName = viewedUser?.user_metadata?.full_name || viewedUser?.full_name || `User ${profileTargetId?.slice(0, 8)}`;
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/profile/${profileTargetId}`;
+    // Calculăm identifier-ul o singură dată
+    const identifier = profileData.username || profileTargetId;
+    // Declari shareUrl o singură dată
+    const shareUrl = `${window.location.origin}/profile/${identifier}`;
+    
     const shareData = {
       title: `${userName} on lstnr`,
       text: 'Check out my Spotify profile',
@@ -227,13 +223,16 @@ const Profile = () => {
   };
 
   return (
-    <main className="profile-page">
+    <main 
+      className="profile-page" 
+      style={{ 
+        backgroundColor: profileData.bg_color || 'var(--bg-main)', 
+        '--accent': profileData.aura_color || 'var(--text-primary)', 
+        boxShadow: `inset 0 0 150px ${profileData.aura_color}20` 
+      }}
+    >
       <Helmet>
         <title>{userName} | lstnr</title>
-        <meta property="og:title" content={`${userName}'s Spotify Profile`} />
-        <meta property="og:description" content="Top artists, playlists, and music taste." />
-        <meta property="og:image" content={profileData.avatarUrl} />
-        <meta property="og:url" content={window.location.href} />
       </Helmet>
 
       {syncError ? <div className="profile-sync-banner">{syncError}</div> : null}
@@ -251,34 +250,21 @@ const Profile = () => {
       <StatsRow stats={stats} />
 
       <GridSection title="Top artists this month" subtitle="Synced from Spotify">
-        <SpotifyCarousel
-          items={favorites.artists}
-          variant="circle"
-          emptyMsg="No top artists yet."
-        />
+        <SpotifyCarousel items={favorites.artists} variant="circle" emptyMsg="No top artists yet." />
       </GridSection>
 
       <GridSection title="Public Playlists" badgeCount={favorites.playlists?.length || 0}>
-        <SpotifyCarousel
-          items={favorites.playlists}
-          variant="square"
-          emptyMsg="No public playlists yet."
-        />
+        <SpotifyCarousel items={favorites.playlists} variant="square" emptyMsg="No public playlists yet." />
       </GridSection>
 
       <GridSection title="Following" badgeCount={favorites.following?.length || 0}>
-        <SpotifyCarousel
-          items={favorites.following}
-          variant="circle"
-          emptyMsg="No followed artists yet."
-        />
+        <SpotifyCarousel items={favorites.following} variant="circle" emptyMsg="No followed artists yet." />
       </GridSection>
 
       <div className="split-grid">
         <GridSection title="Favourite Tracks" badgeCount={favorites.tracks.length}>
           <TrackList tracks={favorites.tracks} emptyMsg="No favourite tracks yet." />
         </GridSection>
-
         <GridSection title="Favourite Albums" badgeCount={favorites.albums.length}>
           <AlbumGrid albums={favorites.albums} emptyMsg="No favourite albums yet." />
         </GridSection>
@@ -288,7 +274,6 @@ const Profile = () => {
         <GridSection title="Recently Played">
           <TrackList tracks={recentlyPlayed} showTime emptyMsg="No recent activity." />
         </GridSection>
-
         <GridSection title="Listening Activity">
           <ActivityGraph data={profileData.activity} />
         </GridSection>
@@ -302,7 +287,7 @@ const Profile = () => {
         <AchievementBadges badges={profileData.badges || []} />
       </GridSection>
 
-      {isOwner ? <MiniPlayer spotifyAccessToken={spotifyToken} /> : null}
+      <MiniPlayer spotifyAccessToken={spotifyToken} />
     </main>
   );
 };

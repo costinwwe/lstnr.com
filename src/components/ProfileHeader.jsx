@@ -1,91 +1,59 @@
-import React, { useRef, useState } from 'react';
-import { supabase } from '../supabase';
+import React, { useState } from 'react';
 import EditProfileModal from './EditProfileModal';
 
-const ProfileHeader = ({ user, userName, profileData, setProfileData, handleShare, isOwner = false, stats = {} }) => {
-  const avatarInputRef = useRef(null);
-  const bannerInputRef = useRef(null);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Starea care controlează popup-ul de editare
+const ProfileHeader = ({ user, userName, profileData, setProfileData, handleShare, isOwner = false }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleFileUpload = async (event, bucket, updateKey) => {
-    const file = event.target.files[0];
-    if (!file || !user) return;
+  // Cine face legea la nume: 1. Setările tale (Display Name) | 2. Username | 3. Numele de pe Spotify
+  const finalName = profileData.display_name || profileData.username || userName;
+  
+  // Tragem poza direct de la Spotify
+  const spotifyAvatar = profileData.avatarUrl;
 
-    // TODO: Connect to your actual Supabase Storage buckets
-    /*
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
-    
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file);
-
-    if (!uploadError) {
-      const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-      setProfileData(prev => ({ ...prev, [updateKey]: data.publicUrl }));
-      // TODO: Update user's profile row in database with new URL
-    }
-    */
-  };
+  // Calculăm data de membru
+  const joinDate = profileData.created_at 
+    ? new Date(profileData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'July 2026';
 
   return (
     <section className="profile-hero">
-      <div className="profile-banner">
-        {profileData.bannerUrl ? (
-          <img src={profileData.bannerUrl} alt="Profile Banner" />
-        ) : (
-          <div className="banner-overlay" />
-        )}
-        {isOwner ? (
-          <label className="edit-overlay">
-            <span>Edit Banner</span>
-            <input
-              type="file"
-              className="hidden-input"
-              ref={bannerInputRef}
-              onChange={(e) => handleFileUpload(e, 'banners', 'bannerUrl')}
-              accept="image/*"
-            />
-          </label>
-        ) : null}
-      </div>
+      
+      {/* 1. BANNER GENERAT DIN SETĂRI (Color Picker) */}
+      <div 
+        className="profile-banner"
+        style={{
+          background: profileData.bg_color 
+            ? `linear-gradient(135deg, ${profileData.bg_color}, ${profileData.aura_color || '#000'})` 
+            : 'var(--border-hover)'
+        }}
+      />
 
       <div className="profile-info-bar">
         <div className="profile-identity">
+          
+          {/* 2. POZA DE LA SPOTIFY */}
           <div className="avatar-wrapper">
-            {profileData.avatarUrl ? (
-              <img src={profileData.avatarUrl} alt={userName} className="profile-avatar" />
+            {spotifyAvatar ? (
+              <img src={spotifyAvatar} alt={finalName} className="profile-avatar" />
             ) : (
-              <div className="profile-avatar">{userName.charAt(0).toUpperCase()}</div>
+              <div className="profile-avatar">{finalName.charAt(0).toUpperCase()}</div>
             )}
-            {isOwner ? (
-              <label className="edit-overlay">
-                <span style={{ fontSize: '0.8rem' }}>Upload</span>
-                <input
-                  type="file"
-                  className="hidden-input"
-                  ref={avatarInputRef}
-                  onChange={(e) => handleFileUpload(e, 'avatars', 'avatarUrl')}
-                  accept="image/*"
-                />
-              </label>
-            ) : null}
           </div>
 
           <div className="profile-meta-text">
-            {/* Dacă are premium și a ales Crimson, îi punem clasa, dacă nu, default. Plus coroana dacă e premium! */}
-            <h1 className={profileData.name_style === 'crimson' ? 'premium-name-crimson' : 'default-name'}>
-  {/* Aici am schimbat ordinea: întâi display_name, apoi username */}
-  {profileData.display_name || profileData.username || userName}
-  {profileData.is_premium && <span title="Premium User" style={{ marginLeft: '8px', fontSize: '1.5rem' }}>👑</span>}
-</h1>
-             
-<div className="profile-pronouns">
-  {profileData.pronouns} • {profileData.location && `${profileData.location} • `} 
-  <span className="member-since">
-    {stats.public_playlists ?? 0} Playlists
-  </span>
-</div>
+            
+            {/* 3. NUMELE ALES DIN MODAL */}
+            <h1 className="default-name">{finalName}</h1>
+            
+            <div className="profile-pronouns">
+              <span>{profileData.pronouns || 'They/Them'}</span>
+              {profileData.location && <span> • {profileData.location}</span>}
+              
+              {/* 4. MEMBER OF LSTNR */}
+              <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '6px', fontStyle: 'italic' }}>
+                Member of lstnr since {joinDate}
+              </span>
+            </div>
             
             <p className="bio-text">
               {profileData.bio || "Add a short bio to tell people about your music taste..."}
@@ -93,33 +61,26 @@ const ProfileHeader = ({ user, userName, profileData, setProfileData, handleShar
             
             <div className="profile-links">
               {(profileData.links || []).map((link, idx) => (
-                <a
-                  key={`${link.title}-${idx}`}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="profile-link-item"
-                >
+                <a key={idx} href={link.url} target="_blank" rel="noreferrer" className="profile-link-item">
                   {link.title}
                 </a>
               ))}
-              {isOwner ? <button type="button" className="profile-link-item">+ Add Link</button> : null}
             </div>
-            <button type="button" className="btn btn-secondary" onClick={handleShare}>
-              Share Profile 📤
-            </button>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+              <button type="button" className="btn btn-secondary" onClick={handleShare}>
+                Share Profile 📤
+              </button>
+              {isOwner && (
+                <button type="button" className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+                  Edit Profile ⚙️
+                </button>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Butonul de editare care deschide modalul */}
-        {isOwner ? (
-          <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(true)}>
-            Edit Profile
-          </button>
-        ) : null}
       </div>
 
-      {/* Randăm Modalul condiționat, exact peste tot */}
       {isModalOpen && (
         <EditProfileModal 
           user={user} 

@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase } from "../supabase";
 
 const EMPTY_FAVORITES = {
   tracks: [],
@@ -11,14 +11,20 @@ const EMPTY_FAVORITES = {
 
 export const EMPTY_PROFILE_STATE = {
   profileData: {
-    bio: '',
-    pronouns: 'They/Them',
+    username: "",
+    display_name: "",
+    location: "",
+    bg_color: "#121212",
+    aura_color: "#1DB954",
+    bio: "",
+    pronouns: "They/Them",
     bannerUrl: null,
     avatarUrl: null,
     links: [],
     badges: [],
     activity: null,
     musicPersonality: null,
+    created_at: null,
   },
   stats: { public_playlists: 0, following: 0, followers: 0 },
   favorites: EMPTY_FAVORITES,
@@ -30,81 +36,89 @@ export const EMPTY_PROFILE_STATE = {
 export async function loadPublicProfile(profileId) {
   if (!profileId) return null;
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', profileId)
+  // 1. Încercăm să căutăm după ID (dacă e UUID)
+  const { data: byId, error: idError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", profileId)
     .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    throw error;
-  }
+  if (byId) return byId;
 
-  if (data) return data;
-
-  const { data: byUserId, error: byUserIdError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', profileId)
+  // 2. Încercăm după user_id (dacă e alt UUID)
+  const { data: byUserId } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("user_id", profileId)
     .maybeSingle();
 
-  if (byUserIdError && byUserIdError.code !== 'PGRST116') {
-    throw byUserIdError;
-  }
+  if (byUserId) return byUserId;
 
-  return byUserId || null;
+  // 3. NOU: Căutăm după username-ul ales de tine în modal!
+  const { data: byUsername, error: usernameError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("username", profileId) // Căutăm în coloana 'username'
+    .maybeSingle();
+
+  if (byUsername) return byUsername;
+
+  return null;
 }
 
 export function mapSavedProfileToState(savedProfile) {
   if (!savedProfile) return EMPTY_PROFILE_STATE;
-
   const savedPayload = savedProfile.profile_data || {};
-  const favorites = savedProfile.favorites || EMPTY_FAVORITES;
-
   return {
     fullName: savedProfile.full_name || savedProfile.display_name || null,
     profileData: {
-      bio: savedPayload.bio || savedProfile.bio || '',
-      pronouns: savedPayload.pronouns || savedProfile.pronouns || 'They/Them',
-      bannerUrl: savedPayload.bannerUrl || savedPayload.banner_url || savedProfile.banner_url || null,
-      avatarUrl: savedPayload.avatarUrl || savedPayload.avatar_url || savedProfile.avatar_url || null,
-      links: savedPayload.links || savedProfile.profile_links || [],
+      username: savedProfile.username || "",
+      display_name: savedProfile.display_name || "",
+      location: savedProfile.location || "",
+      bg_color: savedProfile.bg_color || "#121212",
+      aura_color: savedProfile.aura_color || "#1DB954",
+      bio: savedProfile.bio || savedPayload.bio || "",
+      pronouns: savedProfile.pronouns || savedPayload.pronouns || "They/Them",
+      bannerUrl: savedProfile.banner_url || savedPayload.bannerUrl || null,
+      avatarUrl: savedProfile.avatar_url || savedPayload.avatarUrl || null,
+      links: savedProfile.profile_links || savedPayload.links || [],
       badges: savedPayload.badges || [],
       activity: savedPayload.activity || null,
       musicPersonality: savedPayload.musicPersonality || null,
+      created_at: savedProfile.created_at || null,
     },
     stats: savedProfile.stats || EMPTY_PROFILE_STATE.stats,
-    favorites: {
-      tracks: favorites.tracks || [],
-      albums: favorites.albums || [],
-      artists: favorites.artists || [],
-      genres: (favorites.genres || []).filter(Boolean),
-      playlists: favorites.playlists || [],
-      following: favorites.following || [],
-    },
-    recentlyPlayed: savedProfile.recently_played || savedProfile.recentlyPlayed || [],
-    currentlyPlaying: savedProfile.currently_playing || savedProfile.currentlyPlaying || null,
+    favorites: savedProfile.favorites || EMPTY_FAVORITES,
+    recentlyPlayed: savedProfile.recently_played || [],
+    currentlyPlaying: savedProfile.currently_playing || null,
   };
 }
 
 export async function savePublicProfile(targetUserId, payload) {
-  if (!targetUserId) return { error: new Error('Missing profile id') };
+  if (!targetUserId) return { error: new Error("Missing profile id") };
+
+  // EXTREM DE IMPORTANT: Luăm datele tale manuale ca să NU fie șterse de Spotify!
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", targetUserId)
+    .single();
 
   const profileRow = {
     id: targetUserId,
     user_id: targetUserId,
-    full_name: payload.fullName || null,
-    avatar_url: payload.avatarUrl || null,
-    banner_url: payload.bannerUrl || null,
-    bio: payload.bio || null,
-    pronouns: payload.pronouns || null,
-    profile_links: payload.links || [],
+    // Aici e magia: dacă ai setat tu un bio/nume din Settings, îl păstrează. Dacă nu, ia de la Spotify.
+    full_name: existing?.full_name || payload.fullName || null,
+    bio: existing?.bio || payload.bio || null,
+    pronouns: existing?.pronouns || payload.pronouns || null,
+    avatar_url: payload.avatarUrl || existing?.avatar_url || null, // Poza mereu de pe Spotify
+    banner_url: existing?.banner_url || payload.bannerUrl || null,
+    profile_links: existing?.profile_links || payload.links || [],
     profile_data: {
       avatarUrl: payload.avatarUrl || null,
-      bannerUrl: payload.bannerUrl || null,
-      bio: payload.bio || null,
-      pronouns: payload.pronouns || null,
-      links: payload.links || [],
+      bio: existing?.bio || payload.bio || null,
+      pronouns: existing?.pronouns || payload.pronouns || null,
+      links: existing?.profile_links || payload.links || [],
       badges: payload.badges || [],
       activity: payload.activity || null,
       musicPersonality: payload.musicPersonality || null,
@@ -116,6 +130,8 @@ export async function savePublicProfile(targetUserId, payload) {
     updated_at: new Date().toISOString(),
   };
 
-  const { error } = await supabase.from('profiles').upsert(profileRow, { onConflict: 'id' });
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(profileRow, { onConflict: "id" });
   return { error };
 }
