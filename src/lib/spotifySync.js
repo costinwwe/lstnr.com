@@ -45,12 +45,14 @@ function mapAlbumsFromTracks(items = [], limit = 8) {
 }
 
 function mapPublicPlaylists(items = []) {
+  if (!items) return []; // Siguranță suplimentară
   return items.map((p) => ({
     id: p.id,
     title: p.name,
-    subtitle: `${p.tracks.total} tracks`,
+    // FIXUL E AICI: Am adăugat ?. și || 0
+    subtitle: `${p.tracks?.total || 0} tracks`,
     coverUrl: p.images?.[0]?.url || null,
-    url: p.external_urls.spotify,
+    url: p.external_urls?.spotify || "#", // Am adăugat și aici siguranță în caz că lipsesc link-urile
   }));
 }
 

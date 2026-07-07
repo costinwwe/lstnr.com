@@ -108,7 +108,6 @@ const Login = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'spotify',
       options: {
-        // AICI AM ADAUGAT 'playlist-read-private' LA FINAL 👇
         scopes: 'user-read-email user-read-private streaming user-read-currently-playing user-read-playback-state user-top-read user-read-recently-played user-library-read user-follow-read playlist-read-private',
         queryParams: { prompt: 'consent' },
       },
