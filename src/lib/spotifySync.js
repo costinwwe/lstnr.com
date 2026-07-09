@@ -4,9 +4,31 @@ async function spotifyGet(token, path) {
   const response = await fetch(`${SPOTIFY_API}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-
   if (!response.ok) return null;
   return response.json();
+}
+
+async function fetchCurrentlyPlaying(token) {
+  try {
+    const res = await fetch(`${SPOTIFY_API}/me/player/currently-playing`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 204 || res.status > 400) return null;
+    const data = await res.json();
+    if (data.is_playing && data.item) {
+      return {
+        title: data.item.name,
+        artist: data.item.artists.map((a) => a.name).join(", "),
+        album: data.item.album.name,
+        coverUrl: data.item.album.images?.[0]?.url || null,
+        progress: data.progress_ms,
+        duration: data.item.duration_ms,
+      };
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
 }
 
 function mapTopArtists(items = [], limit = 10) {
@@ -16,7 +38,7 @@ function mapTopArtists(items = [], limit = 10) {
     imageUrl: artist.images?.[0]?.url || null,
     subtitle: "Artist",
     popularity: artist.popularity ?? 0,
-    genres: artist.genres || [], // Păstrăm genurile aici
+    genres: artist.genres || [],
   }));
 }
 
@@ -45,29 +67,29 @@ function mapAlbumsFromTracks(items = [], limit = 8) {
 }
 
 function mapPublicPlaylists(items = []) {
-  if (!items) return []; // Siguranță suplimentară
+  if (!items) return [];
   return items.map((p) => ({
     id: p.id,
     title: p.name,
-    // FIXUL E AICI: Am adăugat ?. și || 0
     subtitle: `${p.tracks?.total || 0} tracks`,
     coverUrl: p.images?.[0]?.url || null,
-    url: p.external_urls?.spotify || "#", // Am adăugat și aici siguranță în caz că lipsesc link-urile
+    url: p.external_urls?.spotify || "#",
   }));
 }
 
 function mapFollowingArtists(items = []) {
+  if (!items) return [];
   return items.map((a) => ({
     id: a.id,
     name: a.name,
     imageUrl: a.images?.[0]?.url || null,
-    url: a.external_urls.spotify,
+    url: a.external_urls?.spotify,
   }));
 }
 
 function mapRecentlyPlayed(items = [], limit = 10) {
   return items.slice(0, limit).map((item) => ({
-    id: item.track.id,
+    id: item.track.id + Math.random(),
     title: item.track.name,
     artist: item.track.artists.map((a) => a.name).join(", "),
     coverUrl: item.track.album?.images?.[0]?.url || null,
@@ -85,7 +107,6 @@ function buildActivityLevels(items = []) {
   return activity;
 }
 
-// LOGICA NOUĂ: Extrage top genuri din artiști
 function extractTopGenres(artists) {
   const genreCounts = {};
   artists.forEach((artist) => {
@@ -110,6 +131,7 @@ export async function syncSpotifyProfile(token) {
     playlists,
     followingArtists,
     recentlyPlayed,
+    currentlyPlaying,
   ] = await Promise.all([
     spotifyGet(token, "/me"),
     spotifyGet(token, "/me/top/tracks?limit=20&time_range=short_term"),
@@ -117,6 +139,7 @@ export async function syncSpotifyProfile(token) {
     spotifyGet(token, "/me/playlists"),
     spotifyGet(token, "/me/following?type=artist"),
     spotifyGet(token, "/me/player/recently-played?limit=20"),
+    fetchCurrentlyPlaying(token), // Acum aducem piesa!
   ]);
 
   if (!me) return null;
@@ -127,8 +150,6 @@ export async function syncSpotifyProfile(token) {
   const following = mapFollowingArtists(followingArtists?.artists?.items || []);
   const recentTracks = mapRecentlyPlayed(recentlyPlayed?.items || [], 10);
   const activity = buildActivityLevels(recentlyPlayed?.items || []);
-
-  // Aici calculăm genurile
   const genres = extractTopGenres(topArtistsMedium?.items || []);
 
   const isPremium = me.product === "premium";
@@ -148,18 +169,19 @@ export async function syncSpotifyProfile(token) {
     ],
     stats: {
       public_playlists: publicPlaylists.length,
-      following: followingArtists?.artists?.total || following.length,
+      following: following.length,
       followers: me.followers?.total || 0,
     },
     favorites: {
       tracks,
       albums,
       artists: mapTopArtists(topArtistsMedium?.items || [], 8),
-      genres, // Acum sunt incluse!
+      genres,
       playlists: publicPlaylists,
       following,
     },
     recentlyPlayed: recentTracks,
+    currentlyPlaying: currentlyPlaying, // GATA, o punem in baza de date
     activity,
   };
 }

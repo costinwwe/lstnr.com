@@ -36,39 +36,32 @@ export const EMPTY_PROFILE_STATE = {
 export async function loadPublicProfile(profileId) {
   if (!profileId) return null;
 
-  // MAGIA AICI: Verificăm dacă ce e în link arată a ID de Supabase (UUID)
   const isUUID =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       profileId,
     );
 
   if (isUUID) {
-    // Dacă e UUID, căutăm după id
     const { data: byId } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", profileId)
       .maybeSingle();
-
     if (byId) return byId;
 
-    // Dacă nu a găsit după id, încercăm după user_id
     const { data: byUserId } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", profileId)
       .maybeSingle();
-
     if (byUserId) return byUserId;
   }
 
-  // Dacă nu e UUID (adică e "Ajutor444" sau alt username pus de tine), căutăm glonț după username!
   const { data: byUsername } = await supabase
     .from("profiles")
     .select("*")
     .eq("username", profileId)
     .maybeSingle();
-
   if (byUsername) return byUsername;
 
   return null;
@@ -76,17 +69,17 @@ export async function loadPublicProfile(profileId) {
 
 export function mapSavedProfileToState(savedProfile) {
   if (!savedProfile) return EMPTY_PROFILE_STATE;
-
   const savedPayload = savedProfile.profile_data || {};
-
   return {
     fullName: savedProfile.full_name || savedProfile.display_name || null,
     profileData: {
-      username: savedProfile.username || "",
-      display_name: savedProfile.display_name || "",
-      location: savedProfile.location || "",
-      bg_color: savedProfile.bg_color || "#121212",
-      aura_color: savedProfile.aura_color || "#1DB954",
+      username: savedProfile.username || savedPayload.username || "",
+      display_name:
+        savedProfile.display_name || savedPayload.display_name || "",
+      location: savedProfile.location || savedPayload.location || "",
+      bg_color: savedProfile.bg_color || savedPayload.bg_color || "#121212",
+      aura_color:
+        savedProfile.aura_color || savedPayload.aura_color || "#1DB954",
       bio: savedProfile.bio || savedPayload.bio || "",
       pronouns: savedProfile.pronouns || savedPayload.pronouns || "They/Them",
       bannerUrl: savedProfile.banner_url || savedPayload.bannerUrl || null,
@@ -122,7 +115,9 @@ export async function savePublicProfile(targetUserId, payload) {
     avatar_url: payload.avatarUrl || existing?.avatar_url || null,
     banner_url: existing?.banner_url || payload.bannerUrl || null,
     profile_links: existing?.profile_links || payload.links || [],
+    // MAGIA E AICI: Păstrăm datele din DB ca să nu îți șteargă setările!
     profile_data: {
+      ...(existing?.profile_data || {}),
       avatarUrl: payload.avatarUrl || null,
       bio: existing?.bio || payload.bio || null,
       pronouns: existing?.pronouns || payload.pronouns || null,
@@ -141,5 +136,6 @@ export async function savePublicProfile(targetUserId, payload) {
   const { error } = await supabase
     .from("profiles")
     .upsert(profileRow, { onConflict: "id" });
+  if (error) console.error("❌ EROARE LA SALVAREA ÎN SUPABASE:", error);
   return { error };
 }
