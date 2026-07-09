@@ -36,29 +36,37 @@ export const EMPTY_PROFILE_STATE = {
 export async function loadPublicProfile(profileId) {
   if (!profileId) return null;
 
-  // 1. Încercăm să căutăm după ID (dacă e UUID)
-  const { data: byId, error: idError } = await supabase
+  // MAGIA AICI: Verificăm dacă ce e în link arată a ID de Supabase (UUID)
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      profileId,
+    );
+
+  if (isUUID) {
+    // Dacă e UUID, căutăm după id
+    const { data: byId } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", profileId)
+      .maybeSingle();
+
+    if (byId) return byId;
+
+    // Dacă nu a găsit după id, încercăm după user_id
+    const { data: byUserId } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", profileId)
+      .maybeSingle();
+
+    if (byUserId) return byUserId;
+  }
+
+  // Dacă nu e UUID (adică e "Ajutor444" sau alt username pus de tine), căutăm glonț după username!
+  const { data: byUsername } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", profileId)
-    .maybeSingle();
-
-  if (byId) return byId;
-
-  // 2. Încercăm după user_id (dacă e alt UUID)
-  const { data: byUserId } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("user_id", profileId)
-    .maybeSingle();
-
-  if (byUserId) return byUserId;
-
-  // 3. NOU: Căutăm după username-ul ales de tine în modal!
-  const { data: byUsername, error: usernameError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("username", profileId) // Căutăm în coloana 'username'
+    .eq("username", profileId)
     .maybeSingle();
 
   if (byUsername) return byUsername;
@@ -68,7 +76,9 @@ export async function loadPublicProfile(profileId) {
 
 export function mapSavedProfileToState(savedProfile) {
   if (!savedProfile) return EMPTY_PROFILE_STATE;
+
   const savedPayload = savedProfile.profile_data || {};
+
   return {
     fullName: savedProfile.full_name || savedProfile.display_name || null,
     profileData: {
@@ -97,7 +107,6 @@ export function mapSavedProfileToState(savedProfile) {
 export async function savePublicProfile(targetUserId, payload) {
   if (!targetUserId) return { error: new Error("Missing profile id") };
 
-  // EXTREM DE IMPORTANT: Luăm datele tale manuale ca să NU fie șterse de Spotify!
   const { data: existing } = await supabase
     .from("profiles")
     .select("*")
@@ -107,11 +116,10 @@ export async function savePublicProfile(targetUserId, payload) {
   const profileRow = {
     id: targetUserId,
     user_id: targetUserId,
-    // Aici e magia: dacă ai setat tu un bio/nume din Settings, îl păstrează. Dacă nu, ia de la Spotify.
     full_name: existing?.full_name || payload.fullName || null,
     bio: existing?.bio || payload.bio || null,
     pronouns: existing?.pronouns || payload.pronouns || null,
-    avatar_url: payload.avatarUrl || existing?.avatar_url || null, // Poza mereu de pe Spotify
+    avatar_url: payload.avatarUrl || existing?.avatar_url || null,
     banner_url: existing?.banner_url || payload.bannerUrl || null,
     profile_links: existing?.profile_links || payload.links || [],
     profile_data: {
